@@ -1,0 +1,88 @@
+{
+    "parent": {
+        "monthly": [
+            {
+                "name": "1 Student Plan",
+                "price": 9.99,
+                "description": "Perfect for 1 student",
+                "features": [
+                    "Access to basic content",
+                    "Email support",
+                    "Basic analytics"
+                ],
+                "stripe_price_id": "price_1S1li5L7arBVYmE8TgNHRXnl"
+            },
+            {
+                "name": "2 Students Plan",
+                "price": 14.99,
+                "description": "Most popular choice for 2 students",
+                "features": [
+                    "All basic features",
+                    "Priority support",
+                    "Advanced analytics",
+                    "Custom branding"
+                ],
+                "stripe_price_id": "price_1S1li6L7arBVYmE8xND43Gqk"
+            },
+            {
+                "name": "3+ Students Plan",
+                "price": 19.99,
+                "description": "For families with 3 or more students",
+                "features": [
+                    "All pro features",
+                    "24/7 phone support",
+                    "Custom integrations",
+                    "Dedicated account manager"
+                ],
+                "stripe_price_id": "price_1S1li6L7arBVYmE8uIKLCqut"
+            }
+        ],
+        "yearly": [
+            {
+                "name": "All Students Yearly Plan",
+                "price": 79.99,
+                "description": "Best value for families with annual commitment",
+                "features": [
+                    "All monthly features",
+                    "Yearly discount",
+                    "Priority support",
+                    "Advanced analytics"
+                ],
+                "stripe_price_id": "price_1S1li6L7arBVYmE8gC99xfNZ"
+            }
+        ]
+    },
+    "teacher": {
+        "monthly": [
+            {
+                "name": "Teacher Monthly Plan",
+                "price": 27.99,
+                "description": "Perfect for individual teachers",
+                "features": [
+                    "Access to all teaching materials",
+                    "Student management tools",
+                    "Quiz creation and management",
+                    "Progress tracking",
+                    "Email support"
+                ],
+                "stripe_price_id": "price_1S1li7L7arBVYmE8TAfDtR3U"
+            }
+        ],
+        "yearly": [
+            {
+                "name": "Teacher Yearly Plan",
+                "price": 299.99,
+                "description": "Best value for teachers with annual commitment",
+                "features": [
+                    "All monthly features",
+                    "Priority support",
+                    "Advanced analytics",
+                    "Custom branding",
+                    "Yearly discount",
+                    "24/7 phone support"
+                ],
+                "stripe_price_id": "price_1S1li7L7arBVYmE8db5yq0RD"
+            }
+        ]
+    }
+}

@@ -1,0 +1,341 @@
+{
+    "info": {
+        "name": "Classerly Subscription API Tests",
+        "description": "Test collection for the new role-based subscription system",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Create Checkout Session - Parent 1 Student Monthly",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"monthly\",\n  \"studentCount\": 1\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Checkout Session - Parent 2 Students Monthly",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"monthly\",\n  \"studentCount\": 2\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Checkout Session - Parent 3+ Students Monthly",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"monthly\",\n  \"studentCount\": 3\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Checkout Session - Parent Yearly",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"yearly\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Checkout Session - Teacher Monthly",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"monthly\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Checkout Session - Teacher Yearly",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"yearly\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Checkout Session - Student (No Payment)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Customer Portal Session",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-customer-portal-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-customer-portal-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Test Invalid Package Type",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"invalid\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Test Invalid Student Count",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"packageType\": \"monthly\",\n  \"studentCount\": 0\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/api/v1/payment/create-checkout-session",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v1",
+                        "payment",
+                        "create-checkout-session"
+                    ]
+                }
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "jwt_token",
+            "value": "your-jwt-token-here",
+            "type": "string"
+        }
+    ]
+}

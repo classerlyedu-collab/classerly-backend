@@ -1,0 +1,31 @@
+const mongoose = require('mongoose');
+
+const CallenderEventsSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    startDate: {
+        type: Date,
+        required: true
+    },
+    endDate: {
+        type: Date,
+        required: true
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'auth',
+        required: true
+    },
+    userType: {
+        type: String,
+        enum: ["Admin", "Teacher", "Student", "Parent"],
+        required: true
+    }
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('CallenderEvents', CallenderEventsSchema); 
