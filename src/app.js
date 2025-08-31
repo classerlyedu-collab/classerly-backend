@@ -6,6 +6,7 @@ const path = require("path");
 const paymentRoutes = require("./routes/payment.routes")
 const couponRoutes = require("./routes/coupon.routes");
 const commentRoutes = require("./routes/comment");
+const chatRoutes = require("./routes/chat.routes");
 
 // Raw body parser for Stripe webhooks (must come before regular JSON parser)
 app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
@@ -96,6 +97,7 @@ app.use("/api/v1", parentRoutes);
 app.use("/api/v1/coupon", couponRoutes);
 
 app.use("/api/comments", commentRoutes);
+app.use("/api/v1/chat", chatRoutes);
 
 app.use(
   "/uploads",
