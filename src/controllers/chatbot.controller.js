@@ -8,7 +8,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { extractGoogleDocsContent, isGoogleDocsUrl } = require('../utils/googleDocsExtractor');
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'your-api-key-here');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Get or create chat session
 exports.getOrCreateChatSession = asyncHandler(async (req, res) => {

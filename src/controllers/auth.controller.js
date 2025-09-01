@@ -184,7 +184,7 @@ exports.register = asyncHandler(async (req, res) => {
         // await subjectData.save();
       }
     } else if (userType == "Parent") {
-      if (childIds) {
+      if (childIds && childIds.length > 0) {
         const std =
           (await StudentModel.find({ code: { $in: childIds } }, { _id: 1 })) ??
           [];
@@ -194,7 +194,6 @@ exports.register = asyncHandler(async (req, res) => {
         }
         profile = new ParentModel({
           auth: auth._id,
-
           childIds: std.map((i) => {
             return i._id;
           }),
@@ -205,9 +204,9 @@ exports.register = asyncHandler(async (req, res) => {
           { parent: profile._id }
         );
       } else {
+        // Create parent without any children initially
         profile = new ParentModel({
           auth: auth._id,
-
           code: generateSixDigitCode(),
         });
       }
