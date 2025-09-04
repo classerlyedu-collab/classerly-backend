@@ -20,7 +20,6 @@ router.post("/", express.raw({ type: "application/json" }), async (req, res) => 
     // Verify webhook signature
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
-    console.error("Webhook signature verification failed.", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -111,8 +110,6 @@ router.post("/", express.raw({ type: "application/json" }), async (req, res) => 
           { stripeCustomerId: customerId },
           { isSubscribed: true },
         );
-
-        console.log(`Subscription ${stripeSubscriptionId} updated successfully.`);
         break;
       }
 
@@ -166,12 +163,12 @@ router.post("/", express.raw({ type: "application/json" }), async (req, res) => 
 
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event type
+        break;
     }
 
     res.status(200).send("Webhook received.");
   } catch (error) {
-    console.error("Webhook processing error:", error);
     res.status(500).send("Internal Server Error");
   }
 });

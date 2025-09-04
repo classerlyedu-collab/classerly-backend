@@ -54,7 +54,6 @@ exports.getOrCreateChatSession = asyncHandler(async (req, res) => {
                         contentSource = 'google_docs_failed';
                     }
                 } catch (extractError) {
-                    console.error('Content extraction error:', extractError);
                     documentContent = `Google Docs URL: lesson.content}\n\nNote: Content extraction failed due to error.`;
                     contentSource = 'google_docs_error';
                 }
@@ -76,7 +75,6 @@ exports.getOrCreateChatSession = asyncHandler(async (req, res) => {
                         contentSource = 'google_docs_failed';
                     }
                 } catch (extractError) {
-                    console.error('Content extraction error:', extractError);
                     documentContent = `Content from: ${req.body.contentUrl}\n\nNote: Content extraction failed due to error.`;
                     contentSource = 'google_docs_error';
                 }
@@ -133,7 +131,6 @@ exports.getOrCreateChatSession = asyncHandler(async (req, res) => {
             message: "Chat session retrieved/created successfully"
         });
     } catch (error) {
-        console.error('Error in getOrCreateChatSession:', error);
         return res.status(500).json(new ApiResponse(500, "Internal server error"));
     }
 });
@@ -233,7 +230,6 @@ Instructions:
             message: "Message sent successfully"
         });
     } catch (error) {
-        console.error('Error in sendMessage:', error);
         return res.status(500).json(new ApiResponse(500, "Error generating response"));
     }
 });
@@ -260,7 +256,6 @@ exports.getChatHistory = asyncHandler(async (req, res) => {
             message: "Chat history retrieved successfully"
         });
     } catch (error) {
-        console.error('Error in getChatHistory:', error);
         return res.status(500).json(new ApiResponse(500, "Internal server error"));
     }
 });
@@ -282,7 +277,6 @@ exports.getStudentChatSessions = asyncHandler(async (req, res) => {
             message: "Chat sessions retrieved successfully"
         });
     } catch (error) {
-        console.error('Error in getStudentChatSessions:', error);
         return res.status(500).json(new ApiResponse(500, "Internal server error"));
     }
 });
@@ -311,7 +305,6 @@ exports.closeChatSession = asyncHandler(async (req, res) => {
             message: "Chat session closed successfully"
         });
     } catch (error) {
-        console.error('Error in closeChatSession:', error);
         return res.status(500).json(new ApiResponse(500, "Internal server error"));
     }
 });

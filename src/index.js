@@ -7,14 +7,13 @@ const { initializeSocket } = require('./socket');
 ConnectDB()
     .then(() => {
         const server = app.listen(port, () => {
-            console.log("app is running at port", port);
+            console.log("Server is running at port", port);
         });
 
         // Initialize Socket.io
         initializeSocket(server);
-        console.log("Socket.io initialized");
     }).catch((error) => {
-        console.log("error in connection", error)
+        console.error("Database connection error:", error.message);
     })
 
 

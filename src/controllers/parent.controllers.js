@@ -19,10 +19,10 @@ exports.getMyChildsubjectdata = async (req, res) => {
     const { id } = req.params;
 
     // Step 1: Get the student and their subjects
-    
+
     const student = await studentModel
-    .findOne({ _id: id })
-    .populate({ path: "subjects", select: ["name", "image"] });
+      .findOne({ _id: id })
+      .populate({ path: "subjects", select: ["name", "image"] });
 
     if (!student) {
       return res.status(404).json({ success: false, message: "Student not found" });
@@ -100,8 +100,6 @@ exports.addNewChild = asyncHandler(async (req, res) => {
       .status(200)
       .json(new ApiResponse(200, findParent, "child added successfully"));
   } catch (error) {
-    console.error("Error in sign-up:");
-
     res.status(200).json({ message: error.message });
   }
 });
@@ -423,7 +421,7 @@ exports.getMyChildbysubjectId = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "studentquizes",
-          let: { 
+          let: {
             topicQuizIds: {
               $map: {
                 input: "$quizes",
@@ -454,21 +452,21 @@ exports.getMyChildbysubjectId = asyncHandler(async (req, res) => {
         }
       }
     ]);
-    
+
     return res.status(200).json(
       new ApiResponse(
         200,
         await Promise.all(
           findTopicLesson.map(async (i) => {
-            let {_id, difficulty, name, image, subject, type, quizes, studentQuizData} = i;
-            
+            let { _id, difficulty, name, image, subject, type, quizes, studentQuizData } = i;
+
             // Match student quiz data with corresponding quizes
             const processedQuizes = quizes.map(quiz => {
               const quizId = quiz._id.toString();
-              const matchingStudentQuiz = studentQuizData.find(sq => 
+              const matchingStudentQuiz = studentQuizData.find(sq =>
                 sq.quizId === quizId
               );
-              
+
               return {
                 _id: quiz._id,
                 grade: quiz.grade || null,
@@ -484,7 +482,7 @@ exports.getMyChildbysubjectId = asyncHandler(async (req, res) => {
                 }] : []
               };
             });
-            
+
             return {
               _id,
               difficulty,
@@ -496,7 +494,7 @@ exports.getMyChildbysubjectId = asyncHandler(async (req, res) => {
               lessons: await Promise.all(
                 i.lessons.map(async (j) => {
                   let { name, image, topic, readby } = j;
-                  readby = readby?.map(id2 => id2.toString());                  
+                  readby = readby?.map(id2 => id2.toString());
                   return {
                     name,
                     image,
@@ -653,7 +651,7 @@ exports.getMyChildbysubjectId = asyncHandler(async (req, res) => {
 //               quizes: (i.quizes.length>0&&i.quizes[0]?.studentQuizData?.length>0) ?(await Promise.all(
 //                 i.quizes.map(async (q) => {
 //                   let { grade, image, status ,_id} = q;
-                  
+
 //                   return {
 //                     _id,
 //                     grade:grade?grade:null,
@@ -888,16 +886,78 @@ exports.getQuizInfo = async (req, res) => {
 };
 exports.getnotification = async (req, res) => {
   try {
-    const data = await NotificationModel.find({
-      $or: [{ for: req.user?.profile?._id }, { forAll: true }],
-    })
+    const userId = req.user._id || req.user.id;
+    const userType = req.user.userType;
+
+    // Find notifications that apply to this user
+    const query = {
+      $or: [
+        // Notifications for all users
+        { forAll: true, forType: "All" },
+        // Notifications for all users of this user's type
+        { forAll: true, forType: userType },
+        // Notifications specifically for this user
+        { forAll: false, for: userId }
+      ]
+    };
+
+    const data = await NotificationModel.find(query)
       .sort({ _id: -1 })
       .limit(10);
+
     return res
       .status(200)
       .json({ success: true, data, message: "Notification get Successfully" });
   } catch (error) {
     return res.status(200).json({
+      success: false,
+      message: error.message || "Something went wrong",
+    });
+  }
+};
+
+exports.markAllNotificationsAsRead = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const userType = req.user.userType;
+
+    // Find notifications that apply to this user
+    const query = {
+      $or: [
+        // Notifications for all users
+        { forAll: true, forType: "All" },
+        // Notifications for all users of this user's type
+        { forAll: true, forType: userType },
+        // Notifications specifically for this user
+        { forAll: false, for: userId }
+      ]
+    };
+
+    // Update all notifications to mark them as read by this user
+    const result = await NotificationModel.updateMany(
+      {
+        ...query,
+        "readBy.userId": { $ne: userId } // Only update notifications not already read by this user
+      },
+      {
+        $push: {
+          readBy: {
+            userId: userId,
+            readAt: new Date()
+          }
+        }
+      }
+    );
+
+    return res
+      .status(200)
+      .json({
+        success: true,
+        message: "All notifications marked as read",
+        modifiedCount: result.modifiedCount
+      });
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       message: error.message || "Something went wrong",
     });

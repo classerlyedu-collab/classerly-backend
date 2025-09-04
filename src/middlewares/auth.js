@@ -14,7 +14,6 @@ const verifytoken = (req, res, next) => {
   }
   try {
     token = token.split(" ")[1];
-    // console.log(token);
 
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
@@ -85,9 +84,9 @@ const verifyteachertoken = (req, res, next) => {
     if (
       decoded.user.userType !== "Teacher" &&
       decoded.user.userType !== "Admin"
-    ){
+    ) {
       return res.status(200).send({ message: "Only teacher have credentials" });
-    }    
+    }
     req.user = decoded.user;
   } catch (err) {
     return res.status(200).send({ message: err.message });

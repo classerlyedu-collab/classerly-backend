@@ -11,6 +11,7 @@ const StudentquizesModel = require("../models/studentquizes");
 const TopicModel = require("../models/topic");
 const LessonModel = require("../models/LessonsModel");
 const CouponModel = require("../models/coupon");
+const NotificationModel = require("../models/notification");
 const moment = require("moment");
 const { tokengenerate } = require("../middlewares/auth");
 
@@ -301,7 +302,6 @@ exports.updateUserByAdmin = asyncHandler(async (req, res) => {
 
           await coupon.save();
         } catch (couponError) {
-          console.error('Error creating/updating coupon:', couponError);
           // Don't fail the main operation if coupon creation fails
         }
       }
@@ -606,7 +606,6 @@ exports.editTopic = asyncHandler(async (req, res) => {
 // Delete a topic by ID
 exports.deleteTopic = asyncHandler(async (req, res) => {
   const { topicId } = req.body; // Topic ID passed as parameter
-  console.log('topic id', topicId);
 
   try {
     // Find the topic by ID and delete it
@@ -650,7 +649,6 @@ exports.getLessonsByTopicId = asyncHandler(async (req, res) => {
 // Edit a lesson (name, content, pages, lang)
 exports.editLesson = asyncHandler(async (req, res) => {
   const { lessonId, name, content, pages, lang } = req.body; // New values for name, content, pages, lang
-  console.log(lessonId, name, content, pages, lang);
 
 
   try {
@@ -688,8 +686,6 @@ exports.editLesson = asyncHandler(async (req, res) => {
 // Delete a lesson by ID
 exports.deleteLesson = asyncHandler(async (req, res) => {
   const { lessonId } = req.body; // Lesson ID passed as parameter
-
-  console.log('lesson id', lessonId);
 
 
   try {
@@ -834,7 +830,6 @@ exports.getQuizPassFailAverages = asyncHandler(async (req, res) => {
 });
 
 exports.getActiveUsers = asyncHandler(async (req, res) => {
-  console.log("get hit")
   try {
     // Fetch all subscribed users who are either Students, Teachers, or Parents
     const activeUsers = await AuthModel.aggregate([
@@ -958,7 +953,6 @@ exports.getAllCustomerSubscriptions = asyncHandler(async (req, res) => {
         : null,
     });
   } catch (error) {
-    console.error("Error fetching subscription summary:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -983,4 +977,286 @@ exports.getAllCoupons = asyncHandler(async (req, res) => {
     });
   }
 });
+
+// ==================== NOTIFICATION FUNCTIONS ====================
+
+// Create a new notification
+exports.createNotification = asyncHandler(async (req, res) => {
+  try {
+    const { title, forType, specificUserIds } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: "Title is required"
+      });
+    }
+
+    // If no specificUserIds provided, create notification for all users of the selected type
+    if (!specificUserIds || specificUserIds.length === 0) {
+      const notificationData = {
+        title,
+        forAll: true,
+        forType: forType || "All"
+      };
+
+      const notification = await NotificationModel.create(notificationData);
+
+      return res.status(201).json({
+        success: true,
+        data: notification,
+        message: `Notification created successfully for all ${forType || 'users'}`
+      });
+    } else {
+      // Create notifications for specific users
+      if (!forType) {
+        return res.status(400).json({
+          success: false,
+          message: "ForType is required when targeting specific users"
+        });
+      }
+
+      const notifications = [];
+      for (const userId of specificUserIds) {
+        const notification = await NotificationModel.create({
+          title,
+          forType,
+          for: userId,
+          forAll: false
+        });
+        notifications.push(notification);
+      }
+
+      return res.status(201).json({
+        success: true,
+        data: notifications,
+        message: `Notification created successfully for ${notifications.length} users`
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get all notifications
+exports.getAllNotifications = asyncHandler(async (req, res) => {
+  try {
+    const notifications = await NotificationModel.find({})
+      .sort({ createdAt: -1 });
+
+    // Manually populate user data for notifications that have a specific user
+    const populatedNotifications = await Promise.all(
+      notifications.map(async (notification) => {
+        const notificationObj = notification.toObject(); // Convert to plain object
+
+        if (notificationObj.for && !notificationObj.forAll) {
+          try {
+            const user = await AuthModel.findById(notificationObj.for)
+              .select('fullName email userType');
+            if (user) {
+              notificationObj.for = user.toObject(); // Convert user to plain object
+            }
+          } catch (error) {
+            // Skip this notification if user population fails
+          }
+        }
+        return notificationObj;
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: populatedNotifications,
+      message: "Notifications retrieved successfully"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get notification by ID
+exports.getNotificationById = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notification = await NotificationModel.findById(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found"
+      });
+    }
+
+    const notificationObj = notification.toObject(); // Convert to plain object
+
+    // Manually populate user data if notification has a specific user
+    if (notificationObj.for && !notificationObj.forAll) {
+      try {
+        const user = await AuthModel.findById(notificationObj.for)
+          .select('fullName email userType');
+        if (user) {
+          notificationObj.for = user.toObject(); // Convert user to plain object
+        }
+      } catch (error) {
+        // Skip this notification if user population fails
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: notificationObj,
+      message: "Notification retrieved successfully"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Update notification
+exports.updateNotification = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+
+    const notification = await NotificationModel.findByIdAndUpdate(
+      id,
+      { title },
+      { new: true }
+    ).populate('for', 'fullName email userType');
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: notification,
+      message: "Notification updated successfully"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Delete notification
+exports.deleteNotification = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notification = await NotificationModel.findByIdAndDelete(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Notification deleted successfully"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get users for notification targeting
+exports.getUsersForNotification = asyncHandler(async (req, res) => {
+  try {
+    const { userType } = req.query;
+
+    let query = {};
+    if (userType && userType !== 'All') {
+      query.userType = userType;
+    }
+
+    const users = await AuthModel.find(query)
+      .select('_id fullName email userType')
+      .sort({ fullName: 1 });
+
+    return res.status(200).json({
+      success: true,
+      data: users,
+      message: "Users retrieved successfully"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get notifications for a specific user based on their role and ID
+exports.getUserNotifications = asyncHandler(async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id; // From auth middleware
+    const userType = req.user.userType; // From auth middleware
+
+    // Find notifications that apply to this user
+    const query = {
+      $or: [
+        // Notifications for all users
+        { forAll: true, forType: "All" },
+        // Notifications for all users of this user's type
+        { forAll: true, forType: userType },
+        // Notifications specifically for this user
+        { forAll: false, for: userId }
+      ]
+    };
+
+    const notifications = await NotificationModel.find(query)
+      .sort({ createdAt: -1 });
+
+    // Manually populate user data for notifications that have a specific user
+    const populatedNotifications = await Promise.all(
+      notifications.map(async (notification) => {
+        const notificationObj = notification.toObject(); // Convert to plain object
+
+        if (notificationObj.for && !notificationObj.forAll) {
+          try {
+            const user = await AuthModel.findById(notificationObj.for)
+              .select('fullName email userType');
+            if (user) {
+              notificationObj.for = user.toObject(); // Convert user to plain object
+            }
+          } catch (error) {
+            // Skip this notification if user population fails
+          }
+        }
+        return notificationObj;
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: populatedNotifications,
+      message: "User notifications retrieved successfully"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 

@@ -291,7 +291,6 @@ exports.addstudent = async (req, res) => {
           });
         }
       } catch (subscriptionError) {
-        console.error('Error checking subscription:', subscriptionError);
         return res.status(200).json({
           success: false,
           message: "Error checking subscription status"
@@ -310,7 +309,6 @@ exports.addstudent = async (req, res) => {
           });
         }
       } catch (subscriptionError) {
-        console.error('Error checking subscription:', subscriptionError);
         return res.status(200).json({
           success: false,
           message: "Error checking subscription status"

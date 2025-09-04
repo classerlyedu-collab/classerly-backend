@@ -3,12 +3,9 @@ const authModel = require("../models/auth");
 
 const createCoupon = async (req, res) => {
   try {
-    console.log("Received request to create coupon:", req.body);
-
     const { userId, code, oneTimeUse } = req.body;
 
     if (!userId || !code) {
-      // console.log("Missing userId or code in request body");
       return res.status(400).json({ message: "User ID and code are required" });
     }
 
@@ -33,13 +30,11 @@ const createCoupon = async (req, res) => {
     });
 
     await newCoupon.save();
-    console.log("Coupon created successfully:", newCoupon);
 
     res
       .status(201)
       .json({ message: "Coupon created successfully", coupon: newCoupon });
   } catch (error) {
-    console.error("Error creating coupon:", error);
     res
       .status(500)
       .json({ message: "Internal server error", error: error.message });
@@ -84,7 +79,6 @@ const getAllCoupons = async (req, res) => {
 
 const getCouponsByUserId = async (req, res) => {
   try {
-    console.log("Received request to fetch coupons for user:", req.params);
     const { userId } = req.params; // Extract userId from URL params
 
     // ✅ 2️⃣ Check if the user exists
@@ -107,7 +101,6 @@ const getCouponsByUserId = async (req, res) => {
       .status(200)
       .json({ message: "Coupons retrieved successfully", coupons });
   } catch (error) {
-    console.error("Error fetching coupons:", error);
     res
       .status(500)
       .json({ message: "Internal server error", error: error.message });
@@ -214,7 +207,7 @@ const useCoupon = async (req, res) => {
 
     // Update coupon usage
 
-    
+
     coupon.used = true;
     // if (!coupon.oneTimeUse) {
     //     coupon.oneTimeUse = false; // Ensuring it cannot be used again
@@ -222,17 +215,16 @@ const useCoupon = async (req, res) => {
     await coupon.save();
 
     // Update provider's couponClosed field
-    if(user.plan === "allowToRegisterMultiStudents"){
+    if (user.plan === "allowToRegisterMultiStudents") {
       provider.couponClosed = false;
     }
-    
+
     provider.couponUsed = true;
     provider.couponClosed = true;
     await provider.save();
 
     return res.status(200).json({ message: "Coupon applied successfully." });
   } catch (error) {
-    console.error("Error applying coupon:", error);
     return res.status(500).json({ message: "Internal server error." });
   }
 };

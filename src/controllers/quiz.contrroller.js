@@ -279,8 +279,6 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
       let marks = 0,
         score = 0;
 
-      console.log(`[QUIZ END] Processing quiz completion for quiz ID: ${id}, student: ${req.user.profile._id}`);
-
       const questions = quizdata.questions;
       const answers = studentdata.answers;
 
@@ -292,13 +290,8 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
         const correct = normalizeAnswer(q.answer, q.options);
         const submitted = normalizeAnswer(studentAnswer, q.options);
 
-        console.log(`[QUESTION ${index + 1}] Correct: ${correct}, Student Answer: ${submitted}`);
-
         if (correct === submitted) {
           marks += q.score;
-          console.log(`[QUESTION ${index + 1}] ✅ Correct — Marks: ${marks}`);
-        } else {
-          console.log(`[QUESTION ${index + 1}] ❌ Incorrect`);
         }
 
         score += q.score;
@@ -306,8 +299,6 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
 
       const percentage = (marks / score) * 100;
       const result = percentage > 70 ? "pass" : "fail";
-
-      console.log(`[QUIZ COMPLETE] Total Marks: ${marks}, Total Score: ${score}, Percentage: ${percentage.toFixed(2)}%, Result: ${result}`);
 
       try {
         const quizsdata = await StudentquizesModel.findOneAndUpdate(
@@ -324,15 +315,12 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
           { new: true }
         );
 
-        console.log(`[DB UPDATE] Quiz data updated successfully for student ${req.user.profile._id}`);
-
         return res.send({
           success: true,
           data: { ...quizsdata._doc, marks, score },
           message: "Quiz Completed successfully",
         });
       } catch (error) {
-        console.error(`[ERROR] Failed to update quiz result: ${error.message}`, error);
         return res.status(500).send({
           success: false,
           message: "Something went wrong while completing the quiz",

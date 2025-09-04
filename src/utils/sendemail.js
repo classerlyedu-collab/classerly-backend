@@ -3,7 +3,6 @@ const nodemailer = require('nodemailer');
 
 
 const sendEmail = (async (emailsubject, email, message, requestType) => {
-    console.log("email body", email);
     try {
         const transporter = nodemailer.createTransport({
             service: process.env.SMTP_SERVICE || "Gmail",
@@ -38,8 +37,7 @@ const sendEmail = (async (emailsubject, email, message, requestType) => {
         }
         await transporter.sendMail(Mailoptions)
     } catch (error) {
-        console.log("something went wrong in sending email", error.message)
-        // throw new ApiError(500,"something went wrong in sending email")
+        // Error sending email
     }
 
 

@@ -2,25 +2,34 @@ const mongoose = require("mongoose");
 const { Schema } = require("mongoose");
 const NotificationSchema = new Schema(
   {
-    forAll:{type:Boolean,defaul:false},
+    forAll: { type: Boolean, default: false },
     forType: {
       type: String,
-      enum: ["Student", "Teacher", "Parent"],
-      required: true,
+      enum: ["Student", "Teacher", "Parent", "All"],
+      required: function () {
+        return !this.forAll;
+      },
     },
 
     for: {
       type: mongoose.Schema.Types.ObjectId,
-      // ref: "Student",
-      required: true,
-      refPath: "forType",
+      required: function () {
+        return !this.forAll;
+      },
     },
     title: {
       type: String,
     },
-    description: {
-      type: String,
-    },
+    readBy: [{
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Auth"
+      },
+      readAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
   },
   {
     timestamps: true,

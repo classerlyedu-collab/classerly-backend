@@ -28,7 +28,13 @@ const {
     getActiveUsers,
     getAllCustomerSubscriptions,
     getQuizPassFailAverages,
-    getAllCoupons
+    getAllCoupons,
+    createNotification,
+    getAllNotifications,
+    getNotificationById,
+    updateNotification,
+    deleteNotification,
+    getUsersForNotification
 } = require("../controllers/admincontrollers");
 const { verifyadmintoken } = require("../middlewares/auth");
 
@@ -74,6 +80,15 @@ router.put("/deleteLesson", verifyadmintoken, deleteLesson);
 router.get("/activeusers", verifyadmintoken, getActiveUsers);
 router.get("/stripedata", verifyadmintoken, getAllCustomerSubscriptions);
 router.get("/coupons", verifyadmintoken, getAllCoupons);
+
+// ==================== NOTIFICATION ROUTES ====================
+// Notifications
+router.post("/notifications", verifyadmintoken, createNotification);
+router.get("/notifications", verifyadmintoken, getAllNotifications);
+router.get("/notifications/:id", verifyadmintoken, getNotificationById);
+router.put("/notifications/:id", verifyadmintoken, updateNotification);
+router.delete("/notifications/:id", verifyadmintoken, deleteNotification);
+router.get("/users-for-notification", verifyadmintoken, getUsersForNotification);
 
 
 

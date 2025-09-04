@@ -31,18 +31,14 @@ const initializeSocket = (server) => {
     });
 
     io.on('connection', (socket) => {
-        console.log(`User connected: ${socket.userId} (${socket.userType})`);
-
         // Join a specific chat room
         socket.on('join-chat', (sessionId) => {
             socket.join(`chat-${sessionId}`);
-            console.log(`User ${socket.userId} joined chat session: ${sessionId}`);
         });
 
         // Leave a chat room
         socket.on('leave-chat', (sessionId) => {
             socket.leave(`chat-${sessionId}`);
-            console.log(`User ${socket.userId} left chat session: ${sessionId}`);
         });
 
         // Handle new message
@@ -58,7 +54,7 @@ const initializeSocket = (server) => {
                     timestamp: new Date()
                 });
             } catch (error) {
-                console.error('Error handling new message:', error);
+                // Handle error silently
             }
         });
 
@@ -79,7 +75,7 @@ const initializeSocket = (server) => {
         });
 
         socket.on('disconnect', () => {
-            console.log(`User disconnected: ${socket.userId}`);
+            // User disconnected
         });
     });
 

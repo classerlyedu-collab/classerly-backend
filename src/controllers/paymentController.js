@@ -138,7 +138,6 @@ exports.createCustomerPortalSession = asyncHandler(async (req, res) => {
       new ApiResponse(200, { url: session.url }, "Portal session created successfully")
     );
   } catch (stripeError) {
-    console.error('Stripe Customer Portal Error:', stripeError);
 
     // Handle specific Stripe errors
     if (stripeError.code === 'configuration_invalid') {
@@ -162,7 +161,6 @@ exports.handleWebhook = asyncHandler(async (req, res) => {
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -243,7 +241,6 @@ async function handleCheckoutSessionCompleted(session) {
 
   const user = await authModel.findById(userId);
   if (!user) {
-    console.error('User not found for checkout session:', userId);
     return;
   }
 
@@ -297,7 +294,7 @@ async function handleCheckoutSessionCompleted(session) {
 
       await newSubscription.save();
     } catch (error) {
-      console.error('❌ Error creating initial subscription record:', error);
+      // Error creating subscription record
     }
   }
 }
@@ -311,7 +308,6 @@ async function handleSubscriptionUpdated(subscription) {
 
   const user = await authModel.findById(userId);
   if (!user) {
-    console.error('User not found for subscription update:', userId);
     return;
   }
 
@@ -321,28 +317,20 @@ async function handleSubscriptionUpdated(subscription) {
     user.isSubscribed = true;
     user.trialStatus = 'completed';
     user.trialEndDate = null; // Clear trial end date
-
-    console.log(`Subscription active for user ${userId}: ${subscription.status}`);
   } else if (subscription.status === 'trialing') {
     // User is in trial period
     user.isSubscribed = true;
     user.trialStatus = 'active';
     user.trialEndDate = new Date(subscription.trial_end * 1000);
-
-    console.log(`User ${userId} in trial period until: ${user.trialEndDate}`);
   } else if (subscription.status === 'past_due') {
     // Payment failed after trial - user still has access but needs to update payment
     user.isSubscribed = true;
     user.trialStatus = 'past_due';
-
-    console.log(`User ${userId} subscription past due - payment required`);
   } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
     // Subscription cancelled or unpaid - revoke access
     user.isSubscribed = false;
     user.trialStatus = 'none';
     user.trialEndDate = null;
-
-    console.log(`Subscription deactivated for user ${userId}: ${subscription.status}`);
   }
 
   await user.save();
@@ -364,7 +352,7 @@ async function handleSubscriptionUpdated(subscription) {
       await existingSubscription.save();
     }
   } catch (error) {
-    console.error('❌ Error updating subscription in database:', error);
+    // Error updating subscription in database
   }
 }
 
@@ -376,7 +364,6 @@ async function handleSubscriptionDeleted(subscription) {
 
   const user = await authModel.findById(userId);
   if (!user) {
-    console.error('User not found for subscription deletion:', userId);
     return;
   }
 
@@ -384,8 +371,6 @@ async function handleSubscriptionDeleted(subscription) {
   user.trialStatus = 'none';
   user.trialEndDate = null;
   await user.save();
-
-  console.log(`Subscription deactivated for user ${userId}`);
 
   // 🆕 Update subscription in subscriptions collection
   try {
@@ -399,10 +384,9 @@ async function handleSubscriptionDeleted(subscription) {
       existingSubscription.cancelled_at = new Date();
 
       await existingSubscription.save();
-      console.log(`🗑️ Marked subscription as cancelled in database: ${subscription.id}`);
     }
   } catch (error) {
-    console.error('❌ Error updating subscription in database:', error);
+    // Error updating subscription in database
   }
 }
 
@@ -415,7 +399,6 @@ async function handleSubscriptionCreated(subscription) {
 
   const user = await authModel.findById(userId);
   if (!user) {
-    console.error('User not found for subscription creation:', userId);
     return;
   }
 
@@ -477,7 +460,7 @@ async function handleSubscriptionCreated(subscription) {
       await newSubscription.save();
     }
   } catch (error) {
-    console.error('❌ Error saving subscription to database:', error);
+    // Error saving subscription to database
   }
 }
 
@@ -511,7 +494,6 @@ async function handleTrialEnding(subscription) {
 
   const user = await authModel.findById(userId);
   if (!user) {
-    console.error('User not found for trial ending notification:', userId);
     return;
   }
 
@@ -537,15 +519,12 @@ async function handlePaymentFailed(invoice) {
 
     const user = await authModel.findById(userId);
     if (!user) {
-      console.error('User not found for payment failure:', userId);
       return;
     }
 
     // Update user status to indicate payment issue
     user.trialStatus = 'payment_failed';
     await user.save();
-
-    console.log(`Payment failed for user ${userId} after trial period`);
 
     // TODO: Send email notification to user about payment failure
     // You can implement email notification logic here
@@ -621,7 +600,7 @@ exports.debugSubscriptionStatus = asyncHandler(async (req, res) => {
         metadata: sub.metadata
       }));
     } catch (error) {
-      console.error('Error fetching Stripe subscriptions:', error);
+      // Error fetching Stripe subscriptions
     }
   }
 
@@ -634,7 +613,7 @@ exports.debugSubscriptionStatus = asyncHandler(async (req, res) => {
       is_cancelled: false
     }).sort({ createdAt: -1 });
   } catch (error) {
-    console.error('Error fetching subscription from database:', error);
+    // Error fetching subscription from database
   }
 
   const debugInfo = {
@@ -705,7 +684,7 @@ exports.getSubscriptionDetails = asyncHandler(async (req, res) => {
       };
     }
   } catch (error) {
-    console.error('Error fetching subscription details:', error);
+    // Error fetching subscription details
   }
 
   return res.status(200).json(
@@ -773,7 +752,6 @@ exports.getUserSubscriptionStatus = asyncHandler(async (req, res) => {
         };
       }
     } catch (stripeError) {
-      console.error('Error fetching Stripe subscription:', stripeError);
       // Continue with basic subscription info even if Stripe call fails
     }
   }
@@ -822,7 +800,6 @@ exports.createPaymentIntent = async (req, res) => {
 
     res.status(200).json({ clientSecret: paymentIntent.client_secret, success: true });
   } catch (error) {
-    console.error("Payment Error:", error);
     res.status(500).json({ message: "Payment failed", error: error.message });
   }
 };
@@ -887,7 +864,6 @@ exports.cancelSubscriptionByAdmin = asyncHandler(async (req, res) => {
     );
 
   } catch (error) {
-    console.error('Error cancelling subscription:', error);
     throw new ApiError(500, `Failed to cancel subscription: ${error.message}`);
   }
 });

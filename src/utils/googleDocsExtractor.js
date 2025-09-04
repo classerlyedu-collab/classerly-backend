@@ -62,8 +62,6 @@ async function extractGoogleDocsContent(url) {
             return null;
         }
     } catch (error) {
-        console.error('Error extracting Google Docs content:', error.message);
-
         // Fallback: Try to get at least the document title
         try {
             const htmlResponse = await axios.get(url, {
@@ -82,7 +80,7 @@ async function extractGoogleDocsContent(url) {
                 }
             }
         } catch (fallbackError) {
-            console.error('Fallback extraction also failed:', fallbackError.message);
+            // Fallback extraction also failed
         }
 
         return null;
