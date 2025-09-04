@@ -454,42 +454,51 @@ exports.updateuser = asyncHandler(async (req, res) => {
       );
     }
 
-    if (grade) {
+    if (grade || subjects) {
 
       switch (req.user.userType) {
         case "Student": {
+          const updateData = {};
+          if (grade) updateData.grade = grade;
+          if (subjects) updateData.subjects = subjects;
+
           await studentModel.findOneAndUpdate(
             {
               auth: req.user._id,
             },
-            {
-              grade, subjects
-            },
+            updateData,
             { new: true }
           );
+          break;
         }
         case "Parent": {
-          await parentModel.findOneAndUpdate(
-            {
-              auth: req.user._id,
-            },
-            {
-              grade,
-            },
-            { new: true }
-          );
+          if (grade) {
+            await parentModel.findOneAndUpdate(
+              {
+                auth: req.user._id,
+              },
+              {
+                grade,
+              },
+              { new: true }
+            );
+          }
+          break;
         }
         case "Teacher": {
           // await validategradeandsubjectforTeacher(grade,subjects)
+          const updateData = {};
+          if (grade) updateData.grade = grade;
+          if (subjects) updateData.subjects = subjects;
+
           await teacherModel.findOneAndUpdate(
             {
               auth: req.user._id,
             },
-
-            { $addToSet: { grade: grade, subjects: subjects } }
-            ,
+            { $addToSet: updateData },
             { new: true }
           );
+          break;
         }
         default: {
         }
