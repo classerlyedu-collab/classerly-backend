@@ -23,6 +23,11 @@ const CallenderEventsSchema = new mongoose.Schema({
         type: String,
         enum: ["Admin", "Teacher", "Student", "Parent"],
         required: true
+    },
+    agenda: {
+        type: String,
+        trim: true,
+        default: ""
     }
 }, {
     timestamps: true

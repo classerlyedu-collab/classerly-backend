@@ -538,7 +538,7 @@ exports.getCalendarEvents = async (req, res) => {
 
 exports.addCalendarEvent = async (req, res) => {
   try {
-    const { title, startDate, endDate } = req.body;
+    const { title, startDate, endDate, agenda } = req.body;
 
     if (!title || !startDate || !endDate) {
       return res.status(200).json({
@@ -551,6 +551,7 @@ exports.addCalendarEvent = async (req, res) => {
       title,
       startDate,
       endDate,
+      agenda: agenda || "",
       createdBy: req.user._id,
       userType: req.user.userType
     });
@@ -567,7 +568,87 @@ exports.addCalendarEvent = async (req, res) => {
       message: error.message || "Something went wrong"
     });
   }
-}
+};
+
+exports.updateCalendarEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, startDate, endDate, agenda } = req.body;
+
+    if (!title || !startDate || !endDate) {
+      return res.status(200).json({
+        success: false,
+        message: "All fields are required"
+      });
+    }
+
+    const event = await CallenderEvents.findById(id);
+    if (!event) {
+      return res.status(200).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    // Check if user is authorized to edit this event
+    if (event.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(200).json({
+        success: false,
+        message: "You are not authorized to edit this event"
+      });
+    }
+
+    event.title = title;
+    event.startDate = startDate;
+    event.endDate = endDate;
+    event.agenda = agenda || "";
+
+    await event.save();
+    return res.status(200).json({
+      success: true,
+      data: event,
+      message: "Calendar event updated successfully"
+    });
+  } catch (error) {
+    return res.status(200).json({
+      success: false,
+      message: error.message || "Something went wrong"
+    });
+  }
+};
+
+exports.deleteCalendarEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const event = await CallenderEvents.findById(id);
+    if (!event) {
+      return res.status(200).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    // Check if user is authorized to delete this event
+    if (event.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(200).json({
+        success: false,
+        message: "You are not authorized to delete this event"
+      });
+    }
+
+    await CallenderEvents.findByIdAndDelete(id);
+    return res.status(200).json({
+      success: true,
+      message: "Calendar event deleted successfully"
+    });
+  } catch (error) {
+    return res.status(200).json({
+      success: false,
+      message: error.message || "Something went wrong"
+    });
+  }
+};
 
 // Add a new comment
 exports.addComment = asyncHandler(async (req, res) => {

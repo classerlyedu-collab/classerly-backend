@@ -1,30 +1,32 @@
 const { Router } = require('express');
 
-const { 
+const {
     myFeedBacks,
     mystudents,
     addstudent,
     mydashboard,
-    mycourses, 
+    mycourses,
     addfeedback,
-    mysubjects, 
-    getCalendarEvents, 
-    addCalendarEvent, 
-    addComment, 
+    mysubjects,
+    getCalendarEvents,
+    addCalendarEvent,
+    updateCalendarEvent,
+    deleteCalendarEvent,
+    addComment,
     getComments,
     addParentFeedback,
     getParentFeedback,
-    getAllParentFeedbacks 
+    getAllParentFeedbacks
 } = require('../controllers/TeacherContrroller');
 const { verifytoken, verifyteachertoken } = require('../middlewares/auth');
 
-const router=Router();
+const router = Router();
 
 router.route("/feedback").get(verifytoken, myFeedBacks);
 router.route("/dashboard").get(verifytoken, mydashboard);
 router.route("/mycourses").get(verifyteachertoken, mycourses);
-router.route('/feedback').post(verifyteachertoken,addfeedback);
-router.route("/mysubjects").get(verifyteachertoken,mysubjects);
+router.route('/feedback').post(verifyteachertoken, addfeedback);
+router.route("/mysubjects").get(verifyteachertoken, mysubjects);
 router.route("/mystudents").get(verifyteachertoken, mystudents);
 router.route("/addstudent").post(verifyteachertoken, addstudent);
 
@@ -36,9 +38,11 @@ router.route("/parent-feedbacks/:studentId/:parentId").get(verifytoken, getAllPa
 // Calendar Events Routes
 router.route("/calendar/events").get(verifytoken, getCalendarEvents);
 router.route("/calendar/events").post(verifytoken, addCalendarEvent);
+router.route("/calendar/events/:id").put(verifytoken, updateCalendarEvent);
+router.route("/calendar/events/:id").delete(verifytoken, deleteCalendarEvent);
 
 // Comment Routes
 router.route("/comments").post(verifytoken, addComment);
 router.route("/comments/:recipientId").get(verifytoken, getComments);
 
-module.exports=router;
+module.exports = router;
