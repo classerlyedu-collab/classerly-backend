@@ -84,12 +84,20 @@ exports.addquiz = asyncHandler(async (req, res) => {
 exports.updatequiz = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Check if ID is valid MongoDB ObjectId format
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error("Invalid quiz ID format");
+    }
+
     const quizdata = await QuizesModel.findById(id);
+
     if (!quizdata) {
       throw new Error("Invalid id");
     }
     const { grade, topic, subject, lesson, startsAt, endsAt, score } = req.body;
-    const gradedata = grade ?? (await gradeModel.findById(grade));
+    const gradedata = await gradeModel.findById(grade);
 
     if (!gradedata) {
       throw new Error("Grade not found");
@@ -99,38 +107,50 @@ exports.updatequiz = asyncHandler(async (req, res) => {
     if (!topicdata) {
       throw new Error("Topic not found");
     }
+
     const subjectdata = await subjectModel.findById(subject);
 
     if (!subjectdata) {
       throw new Error("Subject not found");
     }
-    const lessondata = await gradeModel.findById(lesson);
+
+    const lessondata = await LessonsModel.findById(lesson);
 
     if (!lessondata) {
       throw new Error("Lesson not found");
     }
     let { questions } = req.body
     delete req.body.questions
+
     const data = await QuizesModel.findByIdAndUpdate(id, req.body, {
       new: true,
     });
-    let newQuestions = await Promise.all(questions.map(async (question) => {
 
-      return await QuestionsModel.findOneAndUpdate({
-        question,
-        quiz,
-      }, {
-        question,
+    // First, delete all existing questions for this quiz
+    await QuestionsModel.deleteMany({ quiz: id });
+
+    // Then create new questions
+    let newQuestions = await Promise.all(questions.map(async (question) => {
+      const { question: questionText, options, answer, score } = question;
+
+
+      return await QuestionsModel.create({
+        question: questionText,
         options,
         answer,
         score,
-        quiz,
-      }, { upsert: true }, { new: true })
+        quiz: id,
+      })
     }))
+
+    // Update the quiz with the new question IDs
+    const questionIds = newQuestions.map(q => q._id);
+    await QuizesModel.findByIdAndUpdate(id, { questions: questionIds });
+
     return res.send({
       success: true,
-      data: { ...data, ...newQuestions },
-      message: "Quize Update Successfully",
+      data: { ...data, questions: newQuestions },
+      message: "Quiz Update Successfully",
     });
   } catch (error) {
     return res.status(200).json({ success: false, message: error.message });
@@ -138,10 +158,27 @@ exports.updatequiz = asyncHandler(async (req, res) => {
 });
 exports.deletequiz = asyncHandler(async (req, res) => {
   try {
+    const { id } = req.params;
+
+    // Check if quiz exists and belongs to the teacher
+    const quizdata = await QuizesModel.findOne({
+      _id: id,
+      createdBy: req.user?.profile?._id,
+    });
+
+    if (!quizdata) {
+      throw new Error("Quiz not found or you don't have permission to delete it");
+    }
+
+    // Delete the quiz
+    await QuizesModel.findByIdAndDelete(id);
+
+    // Also delete all student quiz attempts for this quiz
+    await StudentquizesModel.deleteMany({ quiz: id });
+
     return res.send({
       success: true,
-      data: feedbackdata,
-      message: "Feedback done successfully",
+      message: "Quiz deleted successfully",
     });
   } catch (error) {
     return res.status(200).json({ success: false, message: error.message });
@@ -261,6 +298,9 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
           questions: quizdata.questions,
           score: quizdata.score,
           marks: 0,
+          answers: [], // Reset answers array for new attempt
+          status: "start", // Reset status
+          result: "awaiting", // Reset result
         },
         { upsert: true }, { new: true }
       );
@@ -282,13 +322,36 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
       const questions = quizdata.questions;
       const answers = studentdata.answers;
 
+      // Calculate results based only on questions that were actually answered
+      // Filter out questions that don't have answers (for random 10 questions scenario)
+      const answeredQuestions = [];
+      const answeredAnswers = [];
+
+      // Find all indices that have valid answers (non-null, non-empty)
+      const answeredIndices = [];
+      for (let index = 0; index < answers.length; index++) {
+        if (answers[index] !== undefined && answers[index] !== null && answers[index] !== "" && answers[index].trim() !== "") {
+          answeredIndices.push(index);
+        }
+      }
+
+      // Only process questions that were actually answered
+      for (const index of answeredIndices) {
+        if (index < questions.length) { // Safety check
+          answeredQuestions.push(questions[index]);
+          answeredAnswers.push(answers[index]);
+        }
+      }
+
+
       // Use for-loop instead of .map for async/await to work correctly
-      for (let index = 0; index < questions.length; index++) {
-        const q = questions[index];
-        const studentAnswer = answers[index];
+      for (let index = 0; index < answeredQuestions.length; index++) {
+        const q = answeredQuestions[index];
+        const studentAnswer = answeredAnswers[index];
 
         const correct = normalizeAnswer(q.answer, q.options);
         const submitted = normalizeAnswer(studentAnswer, q.options);
+
 
         if (correct === submitted) {
           marks += q.score;
@@ -296,6 +359,7 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
 
         score += q.score;
       }
+
 
       const percentage = (marks / score) * 100;
       const result = percentage > 70 ? "pass" : "fail";
@@ -317,7 +381,13 @@ exports.updatestatusquiz = asyncHandler(async (req, res) => {
 
         return res.send({
           success: true,
-          data: { ...quizsdata._doc, marks, score },
+          data: {
+            ...quizsdata._doc,
+            marks,
+            score,
+            totalQuestions: answeredQuestions.length,
+            totalQuizQuestions: questions.length
+          },
           message: "Quiz Completed successfully",
         });
       } catch (error) {
@@ -469,6 +539,12 @@ exports.addananswer = asyncHandler(async (req, res) => {
     if (index > studentquizdata.questions.length) {
       throw Error("Invalid index");
     }
+
+    // Ensure answers array is long enough
+    while (studentquizdata.answers.length <= index) {
+      studentquizdata.answers.push(null);
+    }
+
     studentquizdata.answers[index] = answer;
     await studentquizdata.save();
     return res.send({
@@ -599,6 +675,12 @@ const normalizeAnswer = (answer, options) => {
   // If answer is A/B/C/D → convert to full text using options
   if (["a", "b", "c", "d"].includes(cleaned)) {
     const index = cleaned.charCodeAt(0) - 97; // a=0, b=1, etc.
+    return options[index]?.trim().toLowerCase() || "";
+  }
+
+  // If answer is 1/2/3/4 → convert to full text using options (0-indexed)
+  if (["1", "2", "3", "4"].includes(cleaned)) {
+    const index = parseInt(cleaned) - 1; // 1=0, 2=1, etc.
     return options[index]?.trim().toLowerCase() || "";
   }
 
