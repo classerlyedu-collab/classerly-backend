@@ -5,6 +5,7 @@ const StudentquizesModel = require("../models/studentquizes");
 const teacherModel = require("../models/teacher");
 const teacherstudentrequestModel = require("../models/teacherstudentrequest");
 const asyncHandler = require("../utils/asyncHandler");
+const ApiResponse = require("../utils/ApiResponse");
 exports.mysubjects = async (req, res) => {
   try {
     let data = await studentModel
@@ -84,7 +85,7 @@ exports.updaterequest = async (req, res) => {
         { _id: data.teacher },
         { $addToSet: { students: req.user?.profile?._id } }
       );
-      
+
       await studentModel.findOneAndUpdate(
         { _id: req.user?.profile?._id },
         { grade: data.grade }
@@ -194,8 +195,8 @@ exports.getmyteacher = async (req, res) => {
     let data = await teacherModel
       .find({
         students: { $in: req.user.profile._id },
-      },{auth:1})
-      .populate({path:"auth", select:"-password"});
+      }, { auth: 1 })
+      .populate({ path: "auth", select: "-password" });
     return res.send({
       success: true,
       data,
@@ -239,19 +240,22 @@ exports.myresult = async (req, res) => {
 
 exports.myFeedBacks = asyncHandler(async (req, res) => {
   try {
-    const findTeacher = await FeedbackModel.find({
+    const feedbacks = await FeedbackModel.find({
       to: req.user.profile._id,
-    }).populate({
-      path: "teacher",
-      populate: {
-        path: "auth",
-        select: "-password", // Exclude the 'password' field
-      },
-    });
+      toType: "Student",
+    })
+      .populate({
+        path: "from",
+        populate: {
+          path: "auth",
+          select: "-password",
+        },
+      })
+      .sort({ createdAt: -1 });
 
     res
-      .status(201)
-      .json(new ApiResponse(200, findTeacher, "feedbacks Found Successfully"));
+      .status(200)
+      .json(new ApiResponse(200, feedbacks, "feedbacks Found Successfully"));
   } catch (error) {
     res.status(200).json({ message: error.message || "Something went wrong" });
   }

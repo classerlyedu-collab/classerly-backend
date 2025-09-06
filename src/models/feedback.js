@@ -46,35 +46,35 @@ const FeedbackSchema = new Schema(
 const FeedbackModel = mongoose.model("feedback", FeedbackSchema);
 const changeStream = FeedbackModel.watch();
 changeStream.on("change", async (change) => {
-  let techerfeedback,studentfeedback;
+  let techerfeedback, studentfeedback;
 
   if (change?.operationType == "update" || change?.operationType == "delete") {
     techerfeedback = await FeedbackModel.find({
-      toType:"Teacher",
+      toType: "Teacher",
       to: (
         await FeedbackModel.findOne({ _id: change.documentKey._id })
       )?.to
     });
-    studentfeedback = 
-    await FeedbackModel.find({
-      toType:"Student",
-      to: (
-        await FeedbackModel.findOne({ _id: change.documentKey._id })
-      )?.to
-    });
+    studentfeedback =
+      await FeedbackModel.find({
+        toType: "Student",
+        to: (
+          await FeedbackModel.findOne({ _id: change.documentKey._id })
+        )?.to
+      });
   } else {
     techerfeedback = await FeedbackModel.find({
-      toType:"Teacher",
+      toType: "Teacher",
       to: change?.fullDocument?.to
     });
     studentfeedback = await FeedbackModel.find({
-      toType:"Student",
+      toType: "Student",
       to: change?.fullDocument?.to
     });
   }
 
 
-  if (techerfeedback.length>0) {
+  if (techerfeedback.length > 0) {
     await teacherModel.findOneAndUpdate(
       { _id: techerfeedback[0]?.to },
       {
@@ -106,7 +106,7 @@ changeStream.on("change", async (change) => {
       }
     );
   }
-  if(studentfeedback.length>0){
+  if (studentfeedback.length > 0) {
     await studentModel.findOneAndUpdate(
       { _id: studentfeedback[0]?.to },
       {
@@ -131,7 +131,7 @@ changeStream.on("change", async (change) => {
             }).length
           },
           average:
-          studentfeedback.reduce((accumulator, currentValue) => {
+            studentfeedback.reduce((accumulator, currentValue) => {
               return accumulator + currentValue.star;
             }, 0) / studentfeedback?.length
         }
