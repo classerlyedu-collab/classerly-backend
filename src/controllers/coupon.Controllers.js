@@ -22,11 +22,24 @@ const createCoupon = async (req, res) => {
         .json({ message: "User is blocked and cannot create coupons" });
     }
 
+    // Check if coupon code already exists
+    const existingCoupon = await CouponModel.findOne({ code: code.toUpperCase() });
+    if (existingCoupon) {
+      return res.status(400).json({ message: "Coupon code already exists" });
+    }
+
     const newCoupon = new CouponModel({
-      userId,
-      code,
-      used: false,
-      oneTimeUse: oneTimeUse || false,
+      code: code.toUpperCase(),
+      description: `Coupon created by ${user.userName}`,
+      type: "FREE_ACCESS",
+      discountPercentage: 100,
+      isActive: true,
+      maxUses: oneTimeUse ? 1 : 10,
+      usedCount: 0,
+      createdBy: userId,
+      usedBy: [],
+      validFrom: new Date(),
+      validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year
     });
 
     await newCoupon.save();
@@ -35,6 +48,7 @@ const createCoupon = async (req, res) => {
       .status(201)
       .json({ message: "Coupon created successfully", coupon: newCoupon });
   } catch (error) {
+    console.error('Coupon creation error:', error);
     res
       .status(500)
       .json({ message: "Internal server error", error: error.message });
@@ -87,14 +101,17 @@ const getCouponsByUserId = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // ✅ 3️⃣ Fetch all coupons for the given userId
-    const coupons = await CouponModel.find({ userId });
+    // ✅ 3️⃣ Fetch all coupons created by the given userId
+    const coupons = await CouponModel.find({ createdBy: userId }).populate(
+      "createdBy",
+      "userName email"
+    );
 
     // ✅ 4️⃣ Return response
     if (coupons.length === 0) {
       return res
         .status(200)
-        .json({ message: "No coupons found for this user" });
+        .json({ message: "No coupons found for this user", coupons: [] });
     }
 
     res
@@ -135,11 +152,16 @@ const useCoupon = async (req, res) => {
     const { userId, couponCode } = req.body;
 
     // Find the coupon
-    const coupon = await CouponModel.findOne({ code: couponCode }).populate(
-      "userId"
+    const coupon = await CouponModel.findOne({ code: couponCode.toUpperCase() }).populate(
+      "createdBy"
     );
     if (!coupon) {
       return res.status(404).json({ message: "Coupon not found." });
+    }
+
+    // Check if coupon is valid
+    if (!coupon.isValid()) {
+      return res.status(400).json({ message: "Coupon is not valid or has expired." });
     }
 
     // Find the user applying the coupon
@@ -149,7 +171,7 @@ const useCoupon = async (req, res) => {
     }
 
     // Find the coupon provider
-    const provider = await authModel.findById(coupon.userId);
+    const provider = await authModel.findById(coupon.createdBy);
     if (!provider) {
       return res.status(404).json({ message: "Coupon provider not found." });
     }
@@ -162,6 +184,12 @@ const useCoupon = async (req, res) => {
           message:
             "You can't use this coupon. The provider's subscription is deactivated.",
         });
+    }
+
+    // Check if user has already used this coupon
+    const alreadyUsed = coupon.usedBy.some(usage => usage.user.toString() === userId);
+    if (alreadyUsed) {
+      return res.status(400).json({ message: "You have already used this coupon." });
     }
 
     // Role-based validation
@@ -188,16 +216,6 @@ const useCoupon = async (req, res) => {
         });
     }
 
-
-
-
-    // Check if coupon has been used
-    if (coupon.used && coupon.oneTimeUse) {
-      return res
-        .status(400)
-        .json({ message: "This coupon has already been used." });
-    }
-
     // Update user schema
     user.isSubscribed = true;
     user.couponUsed = true;
@@ -205,14 +223,8 @@ const useCoupon = async (req, res) => {
     user.couponClosed = true;
     await user.save();
 
-    // Update coupon usage
-
-
-    coupon.used = true;
-    // if (!coupon.oneTimeUse) {
-    //     coupon.oneTimeUse = false; // Ensuring it cannot be used again
-    // }
-    await coupon.save();
+    // Use the coupon
+    await coupon.useCoupon(userId);
 
     // Update provider's couponClosed field
     if (user.plan === "allowToRegisterMultiStudents") {
