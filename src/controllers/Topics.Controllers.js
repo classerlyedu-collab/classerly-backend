@@ -383,6 +383,9 @@ exports.getAlltopicsbysubject = asyncHandler(async (req, res) => {
           },
         },
       },
+      {
+        $sort: { name: 1 }, // Sort by name in ascending order (A to Z)
+      },
     ]);
     // find({ subject });
 
