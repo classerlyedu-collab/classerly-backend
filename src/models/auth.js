@@ -18,6 +18,12 @@ const AuthSchema = new Schema(
       refPath: "userType",
     },
     image: { type: String, default: "" },
+    imageMetadata: {
+      url: { type: String },
+      publicId: { type: String },
+      filename: { type: String },
+      uploadedAt: { type: Date }
+    },
     fullAddress: String,
     otp: String,
     emailNotification: { type: Boolean, default: true },

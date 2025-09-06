@@ -11,21 +11,21 @@ const router = Router();
 
 // ###################### Parents Routes #########################
 // router.route('/registerParent').post(registerparent);
-router.route('/addchild').post(verifytoken, addNewChild);
+router.route('/addchild').post(verifyparenttoken, addNewChild);
 router.route('/getNotification').get(verifytoken, getnotification);
 router.route('/markAllNotificationsAsRead').post(verifytoken, markAllNotificationsAsRead);
 
-router.route('/getMyChildsubjectdata/:id').get(verifytoken, getMyChildsubjectdata);
+router.route('/getMyChildsubjectdata/:id').get(verifyparenttoken, getMyChildsubjectdata);
 
 router.route('/parent/feedback/:id').get(verifyparenttoken, myFeedBacks);
 
-router.route('/mychilds').get(verifytoken, getMyChilds);
+router.route('/mychilds').get(verifyparenttoken, getMyChilds);
 
-router.route('/mychild/:id').get(verifytoken, getMyChildbyId);
-router.route('/mychildbysubject/:id').get(verifytoken, getMyChildbysubjectId);
+router.route('/mychild/:id').get(verifyparenttoken, getMyChildbyId);
+router.route('/mychildbysubject/:id').get(verifyparenttoken, getMyChildbysubjectId);
 
 
-router.route("/getquizinfo/:id").get(verifytoken, getQuizInfo);
+router.route("/getquizinfo/:id").get(verifyparenttoken, getQuizInfo);
 
 
 

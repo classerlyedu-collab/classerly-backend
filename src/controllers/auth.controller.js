@@ -428,29 +428,49 @@ exports.resetpassword = asyncHandler(async (req, res) => {
 });
 exports.updateuser = asyncHandler(async (req, res) => {
   try {
-    const { userName, image, grade, email, subjects, emailNotification, notification } = req.body;
+    const { userName, image, imageMetadata, grade, email, subjects, emailNotification, notification } = req.body;
+
+
     const cleanObject = (obj) => {
       return Object.fromEntries(
         Object.entries(obj).filter(
           ([key, value]) =>
             value !== null &&
             value !== "null" &&
-            value !== "" &&
             value !== undefined &&
             value !== "undefined"
         )
       );
     };
 
-    if (email || userName || image || emailNotification != null || notification != null) {
+    // Get current user data to check for old image
+    const currentUser = await authModel.findById(req.user._id);
+
+    if (email || userName || image || imageMetadata || emailNotification != null || notification != null) {
+      // If updating image and there's an old image, delete it from Cloudinary
+      if (image && currentUser.imageMetadata && currentUser.imageMetadata.publicId) {
+        try {
+          const cloud = require("../config/cloudnaryconfig");
+          await cloud.uploader.destroy(currentUser.imageMetadata.publicId);
+          console.log('Old image deleted from Cloudinary:', currentUser.imageMetadata.publicId);
+        } catch (error) {
+          console.error('Error deleting old image from Cloudinary:', error);
+          // Continue with update even if deletion fails
+        }
+      }
+
+      const updateData = cleanObject({
+        userName,
+        image,
+        imageMetadata,
+        email,
+        emailNotification,
+        notification
+      });
+
       await authModel.findByIdAndUpdate(
         { _id: req.user._id },
-        cleanObject({
-          userName,
-          image,
-          email,
-          emailNotification, notification
-        })
+        updateData
       );
     }
 
@@ -531,6 +551,7 @@ exports.updateuser = asyncHandler(async (req, res) => {
     //     path: "subjects",
     //   },
     // });
+
     return res.status(200).json({
       success: true,
       message: "user updated successfully",

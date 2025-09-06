@@ -129,6 +129,23 @@ exports.getMyChilds = asyncHandler(async (req, res) => {
         populate: { path: "auth", select: "-password" },
       });
 
+    // Check if parent record exists
+    if (!findMychilds) {
+      return res.status(404).json({
+        success: false,
+        message: "Parent record not found. Please contact support."
+      });
+    }
+
+    // Check if parent has children
+    if (!findMychilds.childIds || findMychilds.childIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No children found for this parent.",
+        data: []
+      });
+    }
+
     // const findMychilds = await ParentModel.aggregate([
     //   {
     //     $match: {
@@ -170,137 +187,151 @@ exports.getMyChilds = asyncHandler(async (req, res) => {
     // ]);
 
     setTimeout(async () => {
-      let childs = findMychilds.childIds;
-      // let d =await Promise.all( childs.map(async (i) => {
-      //   return {
-      //     ...i._doc,subjects:
-      //     await Promise.all(
-      //       i.subjects.map(async (j) => {
-      //         let quiz = await topicModel.aggregate([
-      //           {
-      //             $match: {
-      //               subject: new mongoose.Types.ObjectId(j._id),
-      //             },
-      //           },
-      //           {
-      //             $lookup: {
-      //               from: "lessons",
-      //               let: { topicId: { $toString: "$_id" } }, // Convert _id to string
-      //               pipeline: [
-      //                 {
-      //                   $match: {
-      //                     $expr: {
-      //                       $eq: [{ $toString: "$topic" }, "$$topicId"], // Convert topic field to string and compare
-      //                     },
-      //                   },
-      //                 },
-      //               ],
-      //               as: "lessons",
-      //             },
-      //           },
-      //           // {
-      //           //   $match:{
-      //           //     "lessons.readyby":{$in:[new mongoose.Types.ObjectId(req.user.profile._id)]}
-      //           //   }
-      //           // },
-      //           {
-      //             $lookup: {
-      //               from: "quizes",
-      //               let: { topicId: { $toString: "$_id" } }, // Convert _id to string
-      //               pipeline: [
-      //                 {
-      //                   $match: {
-      //                     $expr: {
-      //                       $eq: [{ $toString: "$topic" }, "$$topicId"], // Convert topic field to string and compare
-      //                     },
-      //                   },
-      //                 },
-      //               ],
-      //               as: "quizes",
-      //             },
-      //           },
-      //           {
-      //             $unwind: {
-      //               path: "$quizes", // Specify the field you want to unwind
-      //               preserveNullAndEmptyArrays: true,
-      //             },
-      //           },
+      try {
+        // Check if findMychilds exists and has childIds
+        if (!findMychilds || !findMychilds.childIds) {
+          console.log('No parent record found or no children for user:', req.user?.profile?._id);
+          return;
+        }
 
-      //           {
-      //             $lookup: {
-      //               from: "studentquizes",
-      //               let: {
-      //                 topicId: { $toString: "$quizes._id" },
-      //                 stdId: { $toString: i?._id },
-      //               }, // Convert _id to string
-      //               pipeline: [
-      //                 {
-      //                   $match: {
-      //                     $expr: {
-      //                       $and: [
-      //                         {
-      //                           $eq: [{ $toString: "$quiz" }, "$$topicId"], // Convert topic field to string and compare
-      //                         },
-      //                         {
-      //                           $eq: [{ $toString: "$student" }, "$$stdId"], // Convert topic field to string and compare
-      //                         },
-      //                       ],
-      //                     },
-      //                   },
-      //                 },
-      //               ],
-      //               as: "studentquizes",
-      //             },
-      //           },
-      //           {
-      //             $group: {
-      //               _id: "$_id",
-      //               name: { $first: "$name" },
+        let childs = findMychilds.childIds;
+        // let d =await Promise.all( childs.map(async (i) => {
+        //   return {
+        //     ...i._doc,subjects:
+        //     await Promise.all(
+        //       i.subjects.map(async (j) => {
+        //         let quiz = await topicModel.aggregate([
+        //           {
+        //             $match: {
+        //               subject: new mongoose.Types.ObjectId(j._id),
+        //             },
+        //           },
+        //           {
+        //             $lookup: {
+        //               from: "lessons",
+        //               let: { topicId: { $toString: "$_id" } }, // Convert _id to string
+        //               pipeline: [
+        //                 {
+        //                   $match: {
+        //                     $expr: {
+        //                       $eq: [{ $toString: "$topic" }, "$$topicId"], // Convert topic field to string and compare
+        //                     },
+        //                   },
+        //                 },
+        //               ],
+        //               as: "lessons",
+        //             },
+        //           },
+        //           // {
+        //           //   $match:{
+        //           //     "lessons.readyby":{$in:[new mongoose.Types.ObjectId(req.user.profile._id)]}
+        //           //   }
+        //           // },
+        //           {
+        //             $lookup: {
+        //               from: "quizes",
+        //               let: { topicId: { $toString: "$_id" } }, // Convert _id to string
+        //               pipeline: [
+        //                 {
+        //                   $match: {
+        //                     $expr: {
+        //                       $eq: [{ $toString: "$topic" }, "$$topicId"], // Convert topic field to string and compare
+        //                     },
+        //                   },
+        //                 },
+        //               ],
+        //               as: "quizes",
+        //             },
+        //           },
+        //           {
+        //             $unwind: {
+        //               path: "$quizes", // Specify the field you want to unwind
+        //               preserveNullAndEmptyArrays: true,
+        //             },
+        //           },
 
-      //               image: { $first: "$image" },
+        //           {
+        //             $lookup: {
+        //               from: "studentquizes",
+        //               let: {
+        //                 topicId: { $toString: "$quizes._id" },
+        //                 stdId: { $toString: i?._id },
+        //               }, // Convert _id to string
+        //               pipeline: [
+        //                 {
+        //                   $match: {
+        //                     $expr: {
+        //                       $and: [
+        //                         {
+        //                           $eq: [{ $toString: "$quiz" }, "$$topicId"], // Convert topic field to string and compare
+        //                         },
+        //                         {
+        //                           $eq: [{ $toString: "$student" }, "$$stdId"], // Convert topic field to string and compare
+        //                         },
+        //                       ],
+        //                     },
+        //                   },
+        //                 },
+        //               ],
+        //               as: "studentquizes",
+        //             },
+        //           },
+        //           {
+        //             $group: {
+        //               _id: "$_id",
+        //               name: { $first: "$name" },
 
-      //               subject: { $first: "$subject" },
-      //               difficulty: { $first: "$difficulty" },
-      //               type: { $first: "$type" },
-      //               lessons: { $first: "$lessons" },
+        //               image: { $first: "$image" },
 
-      //               // Group by topic ID
-      //               // subject: { $first: "$subject" }, // Keep other fields from the original topic
-      //               // name: { $first: "$name" },
-      //               quizes: {
-      //                 $push: {
-      //                   _id: "$quizes._id", // Keep quiz fields
-      //                   title: "$quizes.createdBy",
-      //                   questions: "$quizes.questions",
-      //                   status: "$quizes.status",
-      //                   grade: "$quizes.grade",
-      //                   topic: "$quizes.topic",
-      //                   subject: "$quizes.subject",
-      //                   image: "$quizes.image",
-      //                   endsAt: "$quizes.endsAt",
-      //                   startsAt: "$quizes.startsAt",
-      //                   studentQuizData: "$studentquizes", // Embed the student quiz data
-      //                 },
-      //               },
-      //             },
-      //           },
-      //         ])
-      //         return {
-      //           ...j._doc,
-      //           quiz:quiz.map((q)=>{
+        //               subject: { $first: "$subject" },
+        //               difficulty: { $first: "$difficulty" },
+        //               type: { $first: "$type" },
+        //               lessons: { $first: "$lessons" },
 
-      //           }) ,
-      //         };
-      //       })
-      //     )
-      //   }
+        //               // Group by topic ID
+        //               // subject: { $first: "$subject" }, // Keep other fields from the original topic
+        //               // name: { $first: "$name" },
+        //               quizes: {
+        //                 $push: {
+        //                   _id: "$quizes._id", // Keep quiz fields
+        //                   title: "$quizes.createdBy",
+        //                   questions: "$quizes.questions",
+        //                   status: "$quizes.status",
+        //                   grade: "$quizes.grade",
+        //                   topic: "$quizes.topic",
+        //                   subject: "$quizes.subject",
+        //                   image: "$quizes.image",
+        //                   endsAt: "$quizes.endsAt",
+        //                   startsAt: "$quizes.startsAt",
+        //                   studentQuizData: "$studentquizes", // Embed the student quiz data
+        //                 },
+        //               },
+        //             },
+        //           },
+        //         ])
+        //         return {
+        //           ...j._doc,
+        //           quiz:quiz.map((q)=>{
 
-      // }));
+        //           }) ,
+        //         };
+        //       })
+        //     )
+        //   }
 
-      return res
-        .status(200)
+        // }));
 
-        .json(new ApiResponse(200, childs, "childs founded succesfully"));
+        return res
+          .status(200)
+
+          .json(new ApiResponse(200, childs, "childs founded succesfully"));
+      } catch (error) {
+        console.error('Error in setTimeout:', error);
+        return res.status(500).json({
+          success: false,
+          message: "Error processing children data: " + error.message
+        });
+      }
     }, 100);
   } catch (error) {
     return res.status(200).json({ message: error.message });
