@@ -30,7 +30,7 @@ const validategradeandsubjectforStudent = async (grade, subject) => {
   //     throw Error("Invalid subject selected");
   //   }
   // }
-  if (subject.length > 0) {
+  if (subject && subject.length > 0) {
     subjectData = await subjectModel.find({ _id: { $in: subject } });
 
     if (subjectData.length != subject.length) {
@@ -41,14 +41,14 @@ const validategradeandsubjectforStudent = async (grade, subject) => {
 }
 const validategradeandsubjectforTeacher = async (grade, subject) => {
   let gradeData, subjectData
-  if (grade.length > 0) {
+  if (grade && grade.length > 0) {
     gradeData = await gradeModel.find({ _id: { $in: grade } });
     if (gradeData.length != grade.length) {
       throw Error("Invalid grade selected");
     }
   }
 
-  if (subject.length > 0) {
+  if (subject && subject.length > 0) {
     subjectData = await subjectModel.find({ _id: { $in: subject } });
 
     if (subjectData.length != subject.length) {
@@ -162,9 +162,9 @@ exports.register = asyncHandler(async (req, res) => {
 
       await sendEmail(emailsubject, email, message, requestType);
     } else if (userType == "Teacher") {
-      profile = new TeacherModel({ auth: auth._id, grade, subjects: subject });
-      if (gradeData) {
-        await gradeModel.findOneAndUpdate({
+      profile = new TeacherModel({ auth: auth._id, grade: grade || [], subjects: subject || [] });
+      if (gradeData && grade && grade.length > 0) {
+        await gradeModel.updateMany({
           _id: { $in: grade }
         }, {
           $addToSet: {
@@ -172,8 +172,8 @@ exports.register = asyncHandler(async (req, res) => {
           }
         })
       }
-      if (subjectData) {
-        await subjectModel.findOneAndUpdate({
+      if (subjectData && subject && subject.length > 0) {
+        await subjectModel.updateMany({
           _id: { $in: subject }
         }, {
           $addToSet: {
@@ -317,9 +317,13 @@ exports.login = asyncHandler(async (req, res) => {
     let auth
     auth = await authModel.findOne({ userName }).populate({
       path: "profile",
-      populate: {
-        path: "grade", select: ["grade", "_id"]
-      },
+      populate: [
+        {
+          path: "grade",
+          select: ["grade", "_id"],
+          model: "Grade"
+        }
+      ]
     })
     // .populate({
     //   path: "profile",
@@ -541,9 +545,13 @@ exports.updateuser = asyncHandler(async (req, res) => {
     }
     let data = await authModel.findOne({ _id: req.user._id }).populate({
       path: "profile",
-      populate: {
-        path: "grade",
-      },
+      populate: [
+        {
+          path: "grade",
+          select: ["grade", "_id"],
+          model: "Grade"
+        }
+      ]
     })
     // .populate({
     //   path: "profile",
@@ -574,7 +582,7 @@ exports.getmyprofile = asyncHandler(async (req, res) => {
         .populate("profile")
         // .populate(["profile", "profile.parent","profile.subjects"])
 
-        .populate({ path: "profile", populate: { path: "grade", select: ["grade", "_id"] } })
+        .populate({ path: "profile", populate: [{ path: "grade", select: ["grade", "_id"], model: "Grade" }] })
       // return res.status(200).json(data)
     }
     if (req.user.userType == "Teacher") {
@@ -586,7 +594,16 @@ exports.getmyprofile = asyncHandler(async (req, res) => {
           // "profile.subjects",
           // "profile.feedback",
         ])
-        .populate({ path: "profile", populate: { path: "grade", select: ["grade", "_id"] } })
+        .populate({
+          path: "profile",
+          populate: [
+            {
+              path: "grade",
+              select: ["grade", "_id"],
+              model: "Grade"
+            }
+          ]
+        })
       // return res.status(200).json(data)
     }
     if (req.user.userType == "Parent") {
