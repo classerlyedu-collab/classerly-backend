@@ -481,6 +481,9 @@ exports.getAllSubjects = asyncHandler(async (req, res) => {
       .populate('teachers') // Optionally populate the teachers
       .populate('grade'); // Optionally populate the grade
 
+    // Debug image refs for verification
+    // console.log('[getAllSubjects] sample', subjects.slice(0,3).map(s => ({ id: s._id, image: s.image })));
+
     return res.status(200).json({
       success: true,
       message: "Subjects retrieved successfully",
@@ -493,33 +496,45 @@ exports.getAllSubjects = asyncHandler(async (req, res) => {
 
 // Edit a subject (name or image)
 exports.editSubject = asyncHandler(async (req, res) => {
-  const { id, name, image } = req.body; // New name or image from the request body    
+  const { id, name, image } = req.body; // New name or image from the request body
+
+  // Helper to derive cloudinary public_id from a secure_url
+  const getCloudinaryPublicId = (url) => {
+    try {
+      // Example: https://res.cloudinary.com/<cloud>/image/upload/v1724182793/paint-palette_yg7qfd.png
+      // public_id = path after '/upload/<version>/' without extension
+      const match = url.match(/\/upload\/(v\d+\/)?(.+?)(\.[a-zA-Z0-9]+)?$/);
+      return match && match[2] ? match[2] : null;
+    } catch {
+      return null;
+    }
+  };
 
   try {
-    // Find the subject by ID and update the fields (name or image)
-    const updatedSubject = await SubjectsModel.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          name: name || undefined, // Only update name if provided
-          image: image || undefined, // Only update image if provided
-        },
-      },
-      { new: true } // Return the updated subject object
-    );
-
-    if (!updatedSubject) {
-      return res.status(404).json({
-        success: false,
-        message: "Subject not found",
-      });
+    const existing = await SubjectsModel.findById(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Subject not found" });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: "Subject updated successfully",
-      data: updatedSubject,
-    });
+    // If image is provided and different from existing, and existing is a Cloudinary URL, delete old asset
+    if (image && existing.image && existing.image !== image && /res\.cloudinary\.com\//.test(existing.image)) {
+      try {
+        const cloud = require("../config/cloudnaryconfig");
+        const publicId = getCloudinaryPublicId(existing.image);
+        if (publicId) {
+          await cloud.uploader.destroy(publicId, { resource_type: "image" });
+        }
+      } catch (e) {
+        // Non-fatal: log and continue
+        // console.error('Cloudinary delete failed:', e?.message);
+      }
+    }
+
+    existing.name = name || existing.name;
+    if (image) existing.image = image; // keep same key 'image'
+
+    const saved = await existing.save();
+    return res.status(200).json({ success: true, message: "Subject updated successfully", data: saved });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -529,16 +544,66 @@ exports.editSubject = asyncHandler(async (req, res) => {
 exports.deleteSubject = asyncHandler(async (req, res) => {
   const { id } = req.params; // Get subject ID from URL params
 
-  try {
-    // Find the subject by ID and delete it
-    const deletedSubject = await SubjectsModel.findByIdAndDelete(id);
+  const getCloudinaryPublicId = (url) => {
+    try {
+      // Handle different Cloudinary URL formats
+      const urlParts = url.split('/');
+      const uploadIndex = urlParts.findIndex(part => part === 'upload');
 
-    if (!deletedSubject) {
+      if (uploadIndex === -1) {
+        return null;
+      }
+
+      // Get everything after "upload"
+      const pathAfterUpload = urlParts.slice(uploadIndex + 1);
+
+      // Remove version number if present (starts with 'v' followed by digits)
+      const filteredPath = pathAfterUpload.filter(part => !part.match(/^v\d+$/));
+
+      // Join the remaining parts to get the full public ID
+      let publicId = filteredPath.join('/');
+
+      // Remove file extension from the public ID (Cloudinary expects public ID without extension)
+      const lastPart = filteredPath[filteredPath.length - 1];
+      if (lastPart && lastPart.includes('.')) {
+        const nameWithoutExtension = lastPart.split('.')[0];
+        publicId = [...filteredPath.slice(0, -1), nameWithoutExtension].join('/');
+      }
+
+      return publicId;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  try {
+    // Find the subject by ID first to get the image URL
+    const subjectToDelete = await SubjectsModel.findById(id);
+
+    if (!subjectToDelete) {
       return res.status(404).json({
         success: false,
         message: "Subject not found",
       });
     }
+
+    // If the subject has a Cloudinary image, delete it from Cloudinary
+    if (subjectToDelete.image && /res\.cloudinary\.com\//.test(subjectToDelete.image)) {
+      try {
+        const cloud = require("../config/cloudnaryconfig");
+        const publicId = getCloudinaryPublicId(subjectToDelete.image);
+
+        if (publicId) {
+          await cloud.uploader.destroy(publicId, { resource_type: "image" });
+        }
+      } catch (e) {
+        // Non-fatal: log and continue with subject deletion
+        console.error('Cloudinary delete failed:', e?.message);
+      }
+    }
+
+    // Now delete the subject from database
+    const deletedSubject = await SubjectsModel.findByIdAndDelete(id);
 
     return res.status(200).json({
       success: true,
@@ -775,37 +840,31 @@ exports.getQuizPassFailAverages = asyncHandler(async (req, res) => {
   try {
     const { subjectId } = req.params;
 
-    // First, get all quizzes for the specified subject
-    const subjectQuizzes = await QuizesModel.find({ subject: subjectId });
-
-    if (!subjectQuizzes.length) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          totalQuizzes: 0,
-          passCount: 0,
-          failCount: 0,
-          passPercentage: 0,
-          failPercentage: 0,
-          averageScore: 0
+    // Aggregate student quizzes by joining to quiz to ensure subject match
+    const mongoose = require('mongoose');
+    const subjObjectId = new mongoose.Types.ObjectId(subjectId);
+    const pipeline = [
+      { $match: { result: { $in: ["pass", "fail"] }, status: { $in: ["complete", "result"] } } },
+      { $lookup: { from: 'quizes', localField: 'quiz', foreignField: '_id', as: 'quizDoc' } },
+      { $unwind: '$quizDoc' },
+      { $match: { 'quizDoc.subject': subjObjectId } },
+      {
+        $group: {
+          _id: null,
+          totalQuizzes: { $sum: 1 },
+          passCount: { $sum: { $cond: [{ $eq: ['$result', 'pass'] }, 1, 0] } },
+          failCount: { $sum: { $cond: [{ $eq: ['$result', 'fail'] }, 1, 0] } },
+          totalScore: { $sum: { $ifNull: ['$score', 0] } }
         }
-      });
-    }
+      }
+    ];
+    const agg = await StudentquizesModel.aggregate(pipeline);
 
-    // Get all student quizzes for these quizzes
-    const quizIds = subjectQuizzes.map(quiz => quiz._id);
-    const studentQuizzes = await StudentquizesModel.find({
-      quiz: { $in: quizIds },
-      result: { $in: ["pass", "fail"] } // Only count completed quizzes
-    });
-
-    // Calculate statistics
-    const totalQuizzes = studentQuizzes.length;
-    const passCount = studentQuizzes.filter(quiz => quiz.result === "pass").length;
-    const failCount = studentQuizzes.filter(quiz => quiz.result === "fail").length;
-    const totalScore = studentQuizzes.reduce((sum, quiz) => sum + (quiz.score || 0), 0);
-
-    // Calculate percentages and average
+    const totals = agg[0] || { totalQuizzes: 0, passCount: 0, failCount: 0, totalScore: 0 };
+    const totalQuizzes = totals.totalQuizzes || 0;
+    const passCount = totals.passCount || 0;
+    const failCount = totals.failCount || 0;
+    const totalScore = totals.totalScore || 0;
     const passPercentage = totalQuizzes > 0 ? (passCount / totalQuizzes) * 100 : 0;
     const failPercentage = totalQuizzes > 0 ? (failCount / totalQuizzes) * 100 : 0;
     const averageScore = totalQuizzes > 0 ? totalScore / totalQuizzes : 0;
@@ -822,10 +881,175 @@ exports.getQuizPassFailAverages = asyncHandler(async (req, res) => {
       }
     });
   } catch (error) {
+
     return res.status(500).json({
       success: false,
       message: error.message
     });
+  }
+});
+
+// Get overall quiz pass/fail averages across all subjects
+exports.getQuizPassFailAveragesOverall = asyncHandler(async (req, res) => {
+  try {
+    // Get all quizzes
+    // Aggregate across all student quizzes and join quiz to ensure it exists
+    const pipeline = [
+      { $match: { result: { $in: ["pass", "fail"] }, status: { $in: ["complete", "result"] } } },
+      { $lookup: { from: 'quizes', localField: 'quiz', foreignField: '_id', as: 'quizDoc' } },
+      { $unwind: '$quizDoc' },
+      {
+        $group: {
+          _id: null,
+          totalQuizzes: { $sum: 1 },
+          passCount: { $sum: { $cond: [{ $eq: ['$result', 'pass'] }, 1, 0] } },
+          failCount: { $sum: { $cond: [{ $eq: ['$result', 'fail'] }, 1, 0] } },
+          totalScore: { $sum: { $ifNull: ['$score', 0] } }
+        }
+      }
+    ];
+    const agg = await StudentquizesModel.aggregate(pipeline);
+
+    const totals = agg[0] || { totalQuizzes: 0, passCount: 0, failCount: 0, totalScore: 0 };
+    const totalQuizzes = totals.totalQuizzes || 0;
+    const passCount = totals.passCount || 0;
+    const failCount = totals.failCount || 0;
+    const totalScore = totals.totalScore || 0;
+    const passPercentage = totalQuizzes > 0 ? (passCount / totalQuizzes) * 100 : 0;
+    const failPercentage = totalQuizzes > 0 ? (failCount / totalQuizzes) * 100 : 0;
+    const averageScore = totalQuizzes > 0 ? totalScore / totalQuizzes : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalQuizzes,
+        passCount,
+        failCount,
+        passPercentage: passPercentage.toFixed(2),
+        failPercentage: failPercentage.toFixed(2),
+        averageScore: averageScore.toFixed(2)
+      }
+    });
+  } catch (error) {
+
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get quiz pass/fail averages by grade and subject
+exports.getQuizPassFailAveragesByGradeSubject = asyncHandler(async (req, res) => {
+  try {
+    const { gradeId, subjectId } = req.params;
+
+    // Aggregate from studentquizes and join to quiz; match both grade and subject
+    const mongoose = require('mongoose');
+    const gradeObjectId = new mongoose.Types.ObjectId(gradeId);
+    const subjObjectId = new mongoose.Types.ObjectId(subjectId);
+    const pipeline = [
+      { $match: { result: { $in: ["pass", "fail"] } } },
+      { $lookup: { from: 'quizes', localField: 'quiz', foreignField: '_id', as: 'quizDoc' } },
+      { $unwind: '$quizDoc' },
+      { $match: { 'quizDoc.subject': subjObjectId, 'quizDoc.grade': gradeObjectId } },
+      {
+        $group: {
+          _id: null,
+          totalQuizzes: { $sum: 1 },
+          passCount: { $sum: { $cond: [{ $eq: ['$result', 'pass'] }, 1, 0] } },
+          failCount: { $sum: { $cond: [{ $eq: ['$result', 'fail'] }, 1, 0] } },
+          totalScore: { $sum: { $ifNull: ['$score', 0] } }
+        }
+      }
+    ];
+
+    const agg = await StudentquizesModel.aggregate(pipeline);
+
+    const totals = agg[0] || { totalQuizzes: 0, passCount: 0, failCount: 0, totalScore: 0 };
+    const totalQuizzes = totals.totalQuizzes || 0;
+    const passCount = totals.passCount || 0;
+    const failCount = totals.failCount || 0;
+    const totalScore = totals.totalScore || 0;
+    const passPercentage = totalQuizzes > 0 ? (passCount / totalQuizzes) * 100 : 0;
+    const failPercentage = totalQuizzes > 0 ? (failCount / totalQuizzes) * 100 : 0;
+    const averageScore = totalQuizzes > 0 ? totalScore / totalQuizzes : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalQuizzes,
+        passCount,
+        failCount,
+        passPercentage: passPercentage.toFixed(2),
+        failPercentage: failPercentage.toFixed(2),
+        averageScore: averageScore.toFixed(2)
+      }
+    });
+  } catch (error) {
+
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// List grade/subject combinations with pass/fail aggregates to quickly find where data exists
+exports.getQuizPassFailMatrix = asyncHandler(async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const pipeline = [
+      { $match: { result: { $in: ["pass", "fail"] } } },
+      { $lookup: { from: 'quizes', localField: 'quiz', foreignField: '_id', as: 'quizDoc' } },
+      { $unwind: '$quizDoc' },
+      {
+        $group: {
+          _id: { grade: '$quizDoc.grade', subject: '$quizDoc.subject' },
+          totalQuizzes: { $sum: 1 },
+          passCount: { $sum: { $cond: [{ $eq: ['$result', 'pass'] }, 1, 0] } },
+          failCount: { $sum: { $cond: [{ $eq: ['$result', 'fail'] }, 1, 0] } },
+          totalScore: { $sum: { $ifNull: ['$score', 0] } }
+        }
+      },
+      { $sort: { totalQuizzes: -1 } },
+      { $limit: 50 },
+      // Look up grade name
+      { $lookup: { from: 'grades', localField: '_id.grade', foreignField: '_id', as: 'gradeDoc' } },
+      { $lookup: { from: 'subjects', localField: '_id.subject', foreignField: '_id', as: 'subjectDoc' } },
+      {
+        $addFields: {
+          gradeId: '$_id.grade',
+          subjectId: '$_id.subject',
+          gradeName: { $ifNull: [{ $arrayElemAt: ['$gradeDoc.grade', 0] }, null] },
+          subjectName: { $ifNull: [{ $arrayElemAt: ['$subjectDoc.name', 0] }, null] },
+          passPercentage: {
+            $cond: [{ $gt: ['$totalQuizzes', 0] }, { $multiply: [{ $divide: ['$passCount', '$totalQuizzes'] }, 100] }, 0]
+          },
+          failPercentage: {
+            $cond: [{ $gt: ['$totalQuizzes', 0] }, { $multiply: [{ $divide: ['$failCount', '$totalQuizzes'] }, 100] }, 0]
+          },
+          averageScore: {
+            $cond: [{ $gt: ['$totalQuizzes', 0] }, { $divide: ['$totalScore', '$totalQuizzes'] }, 0]
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          gradeId: 1,
+          gradeName: 1,
+          subjectId: 1,
+          subjectName: 1,
+          totalQuizzes: 1,
+          passCount: 1,
+          failCount: 1,
+          passPercentage: { $round: ['$passPercentage', 2] },
+          failPercentage: { $round: ['$failPercentage', 2] },
+          averageScore: { $round: ['$averageScore', 2] }
+        }
+      }
+    ];
+
+    const rows = await StudentquizesModel.aggregate(pipeline);
+    return res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+
+    return res.status(500).json({ success: false, message: error.message });
   }
 });
 

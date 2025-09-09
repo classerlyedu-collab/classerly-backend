@@ -28,7 +28,10 @@ const {
     getActiveUsers,
     getAllCustomerSubscriptions,
     getQuizPassFailAverages,
+    getQuizPassFailAveragesOverall,
+    getQuizPassFailAveragesByGradeSubject,
     getAllCoupons,
+    getQuizPassFailMatrix,
     createNotification,
     getAllNotifications,
     getNotificationById,
@@ -37,6 +40,24 @@ const {
     getUsersForNotification
 } = require("../controllers/admincontrollers");
 const { verifyadmintoken } = require("../middlewares/auth");
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const uploadController = require('../controllers/upload.controller');
+
+// basic multer setup to accept single file under key 'file'
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) { cb(null, uploadsDir); },
+    filename: function (req, file, cb) {
+        const sanitized = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+        cb(null, Date.now() + '-' + sanitized);
+    }
+});
+const imageUpload = multer({ storage });
 
 const router = Router();
 
@@ -44,7 +65,9 @@ const router = Router();
 router.route("/event").post(verifyadmintoken, AdminAddEvent);
 // analytics
 router.route("/analytics").get(verifyadmintoken, getAnalyticsForAdmin);
-// quiz pass/fail averages
+// quiz pass/fail averages (overall and by subject)
+router.route("/quiz-stats").get(verifyadmintoken, getQuizPassFailAveragesOverall);
+router.route("/quiz-stats/:gradeId/:subjectId").get(verifyadmintoken, getQuizPassFailAveragesByGradeSubject);
 router.route("/quiz-stats/:subjectId").get(verifyadmintoken, getQuizPassFailAverages);
 // Teachers routes
 router.route("/teachers").get(verifyadmintoken, getAllTeachers);
@@ -66,7 +89,25 @@ router.get("/quizzes", verifyadmintoken, getAllQuizzess);
 router.get("/quiz/:id", verifyadmintoken, getQuizById);
 // subjects
 router.get("/subjects", verifyadmintoken, getAllSubjects);
-router.put("/editSubject", verifyadmintoken, editSubject);
+// Support optional image upload via backend (form-data: file, plus body fields)
+router.put("/editSubject", verifyadmintoken, imageUpload.single('file'), async (req, res, next) => {
+    try {
+        // If a file is included, first upload to cloudinary to get URL
+        if (req.file) {
+            // Reuse upload controller logic
+            const cloud = require('../config/cloudnaryconfig');
+            const filePath = path.join(__dirname, '../uploads', req.file.filename);
+            const result = await cloud.uploader.upload(filePath, { resource_type: 'image', folder: 'classerly/profile-images' });
+            // Inject URL into body.image for editSubject to use
+            req.body.image = result.secure_url;
+            // cleanup local file
+            fs.unlink(filePath, () => { });
+        }
+        return editSubject(req, res, next);
+    } catch (e) {
+        return res.status(500).json({ success: false, message: e?.message || 'Upload failed' });
+    }
+});
 router.delete("/deleteSubject/:id", verifyadmintoken, deleteSubject);
 // topics
 router.get("/topics/:id", verifyadmintoken, getTopicsBySubjectId);
