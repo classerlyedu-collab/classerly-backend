@@ -384,6 +384,20 @@ exports.getAlltopicsbysubject = asyncHandler(async (req, res) => {
         },
       },
       {
+        // $unwind with preserveNullAndEmptyArrays produces one stub
+        // {_id: null, ...} entry inside `quizes` for topics that have no
+        // quizzes. Strip those out so the array reflects real quizzes only.
+        $addFields: {
+          quizes: {
+            $filter: {
+              input: "$quizes",
+              as: "q",
+              cond: { $ne: [{ $ifNull: ["$$q._id", null] }, null] },
+            },
+          },
+        },
+      },
+      {
         $sort: { name: 1 }, // Sort by name in ascending order (A to Z)
       },
     ]);
