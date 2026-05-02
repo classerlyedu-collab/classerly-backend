@@ -14,6 +14,7 @@ const {
     deleteCalendarEvent,
     addComment,
     getComments,
+    markCommentsRead,
     addParentFeedback,
     getParentFeedback,
     getAllParentFeedbacks
@@ -44,5 +45,6 @@ router.route("/calendar/events/:id").delete(verifytoken, deleteCalendarEvent);
 // Comment Routes
 router.route("/comments").post(verifytoken, addComment);
 router.route("/comments/:recipientId").get(verifytoken, getComments);
+router.route("/comments/read/:senderId").post(verifytoken, markCommentsRead);
 
 module.exports = router;

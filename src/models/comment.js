@@ -33,6 +33,10 @@ const commentSchema = new Schema(
       type: String,
       enum: ["Teacher", "Student"],
       required: true
+    },
+    readByRecipient: {
+      type: Boolean,
+      default: false
     }
   },
   {

@@ -104,6 +104,49 @@ exports.addNewChild = asyncHandler(async (req, res) => {
   }
 });
 
+exports.removeChild = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!isValidObjectId(id)) {
+      return res
+        .status(200)
+        .json({ success: false, message: "Invalid child id" });
+    }
+
+    const parent = await ParentModel.findById(req.user.profile._id);
+    if (!parent) {
+      return res
+        .status(200)
+        .json({ success: false, message: "Parent not found" });
+    }
+
+    const had = parent.childIds.some((cid) => cid.toString() === id.toString());
+    if (!had) {
+      return res
+        .status(200)
+        .json({ success: false, message: "Child is not linked to you" });
+    }
+
+    parent.childIds = parent.childIds.filter(
+      (cid) => cid.toString() !== id.toString()
+    );
+    await parent.save();
+
+    // Detach the parent reference on the student side, only if it currently
+    // points at this parent.
+    await StudentModel.updateOne(
+      { _id: id, parent: parent._id },
+      { $unset: { parent: "" } }
+    );
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { _id: id }, "Child removed successfully"));
+  } catch (error) {
+    res.status(200).json({ success: false, message: error.message });
+  }
+});
+
 exports.getMyChilds = asyncHandler(async (req, res) => {
   try {
     const findMychilds = await ParentModel.findOne({

@@ -721,6 +721,31 @@ exports.getComments = asyncHandler(async (req, res) => {
   }
 });
 
+// Mark all incoming comments from a given sender to me as read
+exports.markCommentsRead = asyncHandler(async (req, res) => {
+  try {
+    const { senderId } = req.params;
+    const result = await commentModel.updateMany(
+      {
+        user: senderId,
+        recipient: req.user._id,
+        readByRecipient: { $ne: true },
+      },
+      { $set: { readByRecipient: true } }
+    );
+    return res.status(200).json({
+      success: true,
+      data: { modified: result.modifiedCount },
+      message: "Comments marked as read",
+    });
+  } catch (error) {
+    return res.status(200).json({
+      success: false,
+      message: error.message || "Something went wrong",
+    });
+  }
+});
+
 // Add feedback to parent
 exports.addParentFeedback = asyncHandler(async (req, res) => {
   try {
